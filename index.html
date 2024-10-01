@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vrastama Weather Portal</title>
+  
+  <!-- Favicon for Page Tab -->
+  <link rel="icon" href="vrastama_icon.png" type="image/png">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: url('vrastama3.jpg') center center fixed;
+      background-size: cover;
+      transition: background 0.5s, filter 0.5s; /* Smooth transition */
+      color: #fff;
+      overflow: auto; /* Allow scrolling */
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      color: rgba(34, 49, 63, 1); /* Dark navy-blue for the title */
+    }
+
+    /* Population Block in the Upper-Left Corner */
+    .population-block {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(34, 49, 63, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      z-index: 1000; /* Make sure it's on top */
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Weather Block Styles with More Transparency */
+    .weather-container, .sub-weather-container {
+      text-align: center;
+      padding: 20px;
+      background-color: rgba(34, 49, 63, 0.7); /* Transparent dark navy-blue */
+      color: white;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 350px;
+      margin-bottom: 20px;
+    }
+
+    .sub-weather-container {
+      background-color: rgba(255, 255, 255, 0.7); /* Light with transparency */
+      color: black;
+    }
+
+    .weather-container h2, .sub-weather-container h2 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+
+    .weather-container p, .sub-weather-container p {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+
+    .weather-container input, .sub-weather-container input {
+      padding: 8px;
+      width: 80%;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid black;
+    }
+
+    button {
+      background-color: rgba(25, 119, 25, 1); /* Original green for buttons */
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #004d00;
+    }
+
+    /* Map styling */
+    #map {
+      height: 400px;
+      width: 100%;
+      max-width: 350px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Clock Styling */
+    #clock {
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px 20px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+
+    /* Footer Styling */
+    footer {
+      background-color: #333;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-size: 1rem;
+      width: 100%;
+    }
+
+    /* Weather Effects */
+    .rain {
+      position: fixed; /* Make sure the rain effect stays in place */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .raindrop {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.6);
+      bottom: 100%;
+      animation: fall 1s linear infinite;
+      width: 2px;
+      height: 15px;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(100vh);
+      }
+    }
+
+    .clouds {
+      position: fixed;
+      top: 10%;
+      left: -50%;
+      width: 200%;
+      height: 20%;
+      background: url('cloud.png') repeat-x;
+      background-size: contain;
+      animation: moveclouds 60s linear infinite;
+      pointer-events: none; /* Make sure clouds don't block content */
+      z-index: 900;
+    }
+
+    @keyframes moveclouds {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    /* Responsive Styling */
+    @media (max-width: 768px) {
+      .weather-container, #map, .sub-weather-container {
+        max-width: 100%;
+      }
+
+      header h1 {
+        font-size: 1.8rem;
+      }
+
+      .weather-container h2, .sub-weather-container h2 {
+        font-size: 1.5rem;
+      }
+
+      button {
+        padding: 8px 15px;
+      }
+    }
+
+    /* Language Switcher */
+    #language-switch {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Language Switcher -->
+  <div id="language-switch">
+    <button onclick="switchLanguage('en')">English</button>
+    <button onclick="switchLanguage('gr')">Ελληνικά</button>
+  </div>
+
+  <!-- Population Block in Upper-Left Corner -->
+  <div class="population-block">
+    <p id="population">Population: Loading...</p>
+  </div>
+
+  <header>
+    <h1>Vrastama Weather Portal</h1>
+  </header>
+
+  <div class="container">
+    <!-- Clock -->
+    <div id="clock"></div>
+
+    <!-- Main Weather Block for Vrastama -->
+    <div class="weather-container">
+      <h2>Vrastama Weather</h2>
+      <p id="vrastama-location">Location: Vrastama</p>
+      <p id="vrastama-temperature">Temperature: Loading...</p>
+      <p id="vrastama-condition">Condition: Loading...</p>
+    </div>
+
+    <!-- Search Weather Block -->
+    <div class="sub-weather-container">
+      <h2>Search Weather</h2>
+      <input type="text" id="cityInput" placeholder="Enter city name" />
+      <button onclick="getWeatherAndMap()">Get Weather</button>
+      <p id="location">Location: </p>
+      <p id="temperature">Temperature: </p>
+      <p id="condition">Condition: </p>
+    </div>
+
+    <!-- Map Block -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    © 2024 Vrastama Weather Portal. Powered by Matsioris D. Georgios. All rights reserved.
+  </footer>
+
+  <!-- Weather Effects -->
+  <div class="rain"></div>
+  <div class="clouds"></div>
+
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    const apiKey = 'a14b6acd056531b654e38565bfea7ebe';  // Your OpenWeather API key
+
+    // Initialize the Leaflet map with Vrastama's location
+    const map = L.map('map').setView([40.4708, 23.5299], 10); // Coordinates of Vrastama, Greece
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker = L.marker([40.4708, 23.5299]).addTo(map); // Default marker for Vrastama
+
+    // Function to update Vrastama's weather
+    function getVrastamaWeather() {
+      const weatherApiUrl = `https://api.openweathermap.org/data/2.5/weather?q=Vrastama&appid=${apiKey}&units=metric`;
+
+      fetch(weatherApiUrl)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('vrastama-temperature').textContent = `Temperature: ${data.main.temp}°C`;
+          document.getElementById('vrastama-condition').textContent = `Condition: ${data.weather[0].description}`;
+
+          // Adjust background based on weather and time of day
+          adjustBackground(data.weather[0].main);
+          triggerWeatherEffect(data.weather[0].main); // Trigger effects based on weather
+
+          // Update Population (for simulation, we will use a static population value)
+          updatePopulation(720); // Example population for Vrastama
+        })
+        .catch(error => {
+          document.getElementById('vrastama-temperature').textContent = 'Error fetching weather data';
+          document.getElementById('vrastama-condition').textContent = '';
+        });
+    }
+
+    // Function to search for other locations
+    function getWeatherAndMap() {
+      const city = document.getElementById('cityInput').value || 'Vrastama'; // Default to Vrastama if no input
+      const weatherApiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+      fetch(weatherApiUrl)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('location').textContent = `Location: ${data.name}`;
+          document.getElementById('temperature').textContent = `Temperature: ${data.main.temp}°C`;
+          document.getElementById('condition').textContent = `Condition: ${data.weather[0].description}`;
+
+          const lat = data.coord.lat;
+          const lon = data.coord.lon;
+
+          // Update map to new location
+          marker.setLatLng([lat, lon]);
+          map.setView([lat, lon], 10);  // Set the view to the new coordinates
+
+          triggerWeatherEffect(data.weather[0].main); // Trigger effects based on weather
+        })
+        .catch(error => {
+          document.getElementById('location').textContent = 'Error fetching weather data';
+          document.getElementById('temperature').textContent = '';
+          document.getElementById('condition').textContent = '';
+        });
+    }
+
+    // Fetch default weather for Vrastama when the page loads
+    window.onload = getVrastamaWeather;
+
+    // Function to adjust the background brightness based on weather and time of day
+    function adjustBackground(weatherCondition) {
+      const now = new Date();
+      const hour = now.getHours();
+      let brightness = '100%';
+
+      // Adjust brightness based on time of day
+      if (hour >= 18 || hour <= 6) {
+        brightness = '70%'; // Evening or night time
+      } else if (hour >= 12 && hour < 18) {
+        brightness = '100%'; // Afternoon, bright
+      } else {
+        brightness = '90%'; // Morning
+      }
+
+      // Adjust further based on weather condition
+      if (weatherCondition.includes('Rain') || weatherCondition.includes('Storm')) {
+        brightness = '60%';
+      } else if (weatherCondition.includes('Clouds')) {
+        brightness = '80%';
+      } else if (weatherCondition.includes('Clear')) {
+        brightness = '100%';
+      }
+
+      document.body.style.filter = `brightness(${brightness})`;
+    }
+
+    // Function to trigger weather effects like rain or clouds
+    function triggerWeatherEffect(weatherCondition) {
+      const rainContainer = document.querySelector('.rain');
+      const cloudsContainer = document.querySelector('.clouds');
+
+      // Remove existing raindrops or clouds
+      rainContainer.innerHTML = '';
+      cloudsContainer.style.display = 'none';
+
+      if (weatherCondition.includes('Rain')) {
+        for (let i = 0; i < 100; i++) {
+          const raindrop = document.createElement('div');
+          raindrop.classList.add('raindrop');
+          raindrop.style.left = Math.random() * 100 + 'vw';
+          raindrop.style.animationDuration = Math.random() * 0.5 + 0.75 + 's';
+          rainContainer.appendChild(raindrop);
+        }
+      } else if (weatherCondition.includes('Clouds')) {
+        cloudsContainer.style.display = 'block';
+      }
+    }
+
+    // Simulate a population update (Replace with API if needed)
+    function updatePopulation(population) {
+      document.getElementById('population').textContent = `Population: ${population}`;
+    }
+
+    // Clock function to display local time
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `Local Time: ${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateClock, 1000); // Update clock every second
+  </script>
+
+</body>
+</html>
